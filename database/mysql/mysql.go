@@ -32,6 +32,13 @@ type DBConn struct {
 
 	// 數據庫名稱
 	Database string `json:"database" yaml:"database"`
+
+	// MySQL 超時設置
+	ReadTimeout     time.Duration `json:"readTimeout" yaml:"readTimeout"`         // read_timeout
+	WriteTimeout    time.Duration `json:"writeTimeout" yaml:"writeTimeout"`       // write_timeout
+	NetReadTimeout  time.Duration `json:"netReadTimeout" yaml:"netReadTimeout"`   // net_read_timeout
+	NetWriteTimeout time.Duration `json:"netWriteTimeout" yaml:"netWriteTimeout"` // net_write_timeout
+	WaitTimeout     time.Duration `json:"waitTimeout" yaml:"waitTimeout"`         // wait_timeout
 }
 
 // ConnectionConfig 定義單個數據庫連接的配置
@@ -41,20 +48,42 @@ type ConnectionConfig struct {
 	UserName string        `json:"username" yaml:"username"`
 	Password string        `json:"password" yaml:"password"`
 	Loc      string        `json:"loc" yaml:"loc"`
-	Timeout  time.Duration `json:"timeout" yaml:"timeout"`
+	Timeout  time.Duration `json:"timeout" yaml:"timeout"` // 連接超時
 }
 
 // DSN 生成DSN連接字符串
-func (c *ConnectionConfig) DSN(database string) string {
+func (c *ConnectionConfig) DSN(cfg *DBConn) string {
+	params := fmt.Sprintf(
+		"charset=utf8mb4&parseTime=True&loc=%s&timeout=%s",
+		c.Loc,
+		c.Timeout,
+	)
+
+	// 添加超時設置
+	if cfg.ReadTimeout > 0 {
+		params += fmt.Sprintf("&readTimeout=%s", cfg.ReadTimeout)
+	}
+	if cfg.WriteTimeout > 0 {
+		params += fmt.Sprintf("&writeTimeout=%s", cfg.WriteTimeout)
+	}
+	if cfg.NetReadTimeout > 0 {
+		params += fmt.Sprintf("&net_read_timeout=%d", int(cfg.NetReadTimeout.Seconds()))
+	}
+	if cfg.NetWriteTimeout > 0 {
+		params += fmt.Sprintf("&net_write_timeout=%d", int(cfg.NetWriteTimeout.Seconds()))
+	}
+	if cfg.WaitTimeout > 0 {
+		params += fmt.Sprintf("&wait_timeout=%d", int(cfg.WaitTimeout.Seconds()))
+	}
+
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s?charset=utf8&parseTime=True&loc=%s&timeout=%s",
+		"%s:%s@tcp(%s:%s)/%s?%s",
 		c.UserName,
 		c.Password,
 		c.Host,
 		c.Port,
-		database,
-		c.Loc,
-		c.Timeout,
+		cfg.Database,
+		params,
 	)
 }
 
@@ -65,7 +94,7 @@ func New(conn *DBConn) (*gorm.DB, error) {
 	}
 
 	// 創建主庫連接
-	masterDSN := conn.Master.DSN(conn.Database)
+	masterDSN := conn.Master.DSN(conn)
 	dbBase, err := gorm.Open(mysql.Open(masterDSN), &gorm.Config{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "open database connection: %s", masterDSN)
@@ -75,7 +104,7 @@ func New(conn *DBConn) (*gorm.DB, error) {
 	if len(conn.Replicas) > 0 {
 		var replicas []gorm.Dialector
 		for _, replica := range conn.Replicas {
-			replicaDSN := replica.DSN(conn.Database)
+			replicaDSN := replica.DSN(conn)
 			replicas = append(replicas, mysql.Open(replicaDSN))
 		}
 

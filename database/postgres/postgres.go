@@ -40,20 +40,23 @@ type DBConn struct {
 	SearchPath string `json:"searchPath" yaml:"searchPath"`
 	SSLMode    string `json:"sslMode" yaml:"sslMode"`
 
+	// PostgreSQL 超時設置
+	StatementTimeout                time.Duration `json:"statementTimeout" yaml:"statementTimeout"`                               // statement_timeout
+	LockTimeout                     time.Duration `json:"lockTimeout" yaml:"lockTimeout"`                                         // lock_timeout
+	IdleInTransactionSessionTimeout time.Duration `json:"idleInTransactionSessionTimeout" yaml:"idleInTransactionSessionTimeout"` // idle_in_transaction_session_timeout
+
 	// pgx 特有配置
 	ApplicationName   string            `json:"applicationName" yaml:"applicationName"`
 	RuntimeParams     map[string]string `json:"runtimeParams" yaml:"runtimeParams"`
-	StatementCache    bool              `json:"statementCache" yaml:"statementCache"`
 	HealthCheckPeriod time.Duration     `json:"healthCheckPeriod" yaml:"healthCheckPeriod"`
 }
 
 // ConnectionConfig 定義單個數據庫連接的配置
 type ConnectionConfig struct {
-	Host     string        `json:"host" yaml:"host"`
-	Port     string        `json:"port" yaml:"port"`
-	UserName string        `json:"username" yaml:"username"`
-	Password string        `json:"password" yaml:"password"`
-	Timeout  time.Duration `json:"timeout" yaml:"timeout"`
+	Host     string `json:"host" yaml:"host"`
+	Port     string `json:"port" yaml:"port"`
+	UserName string `json:"username" yaml:"username"`
+	Password string `json:"password" yaml:"password"`
 }
 
 // DSN 生成PostgreSQL連接字符串
@@ -68,7 +71,7 @@ func (c *ConnectionConfig) DSN(cfg *DBConn) string {
 		searchPath = cfg.SearchPath
 	}
 
-	return fmt.Sprintf(
+	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s search_path=%s",
 		c.Host,
 		c.Port,
@@ -78,6 +81,29 @@ func (c *ConnectionConfig) DSN(cfg *DBConn) string {
 		sslMode,
 		searchPath,
 	)
+
+	// 添加超時設置
+	if cfg.StatementTimeout > 0 {
+		dsn += fmt.Sprintf(" statement_timeout=%d", cfg.StatementTimeout.Milliseconds())
+	}
+	if cfg.LockTimeout > 0 {
+		dsn += fmt.Sprintf(" lock_timeout=%d", cfg.LockTimeout.Milliseconds())
+	}
+	if cfg.IdleInTransactionSessionTimeout > 0 {
+		dsn += fmt.Sprintf(" idle_in_transaction_session_timeout=%d", cfg.IdleInTransactionSessionTimeout.Milliseconds())
+	}
+
+	// 添加 pgx 特有參數
+	if cfg.ApplicationName != "" {
+		dsn += fmt.Sprintf(" application_name=%s", cfg.ApplicationName)
+	}
+
+	// 添加運行時參數
+	for key, value := range cfg.RuntimeParams {
+		dsn += fmt.Sprintf(" %s=%s", key, value)
+	}
+
+	return dsn
 }
 
 func setupConnPool(db *gorm.DB, conn *DBConn) error {
@@ -116,6 +142,11 @@ func New(conn *DBConn) (*gorm.DB, error) {
 		return nil, errors.Wrap(err, "failed to parse master config")
 	}
 
+	// 設置 pgx 特有配置
+	if conn.HealthCheckPeriod > 0 {
+		masterConfig.HealthCheckPeriod = conn.HealthCheckPeriod
+	}
+
 	masterDB := stdlib.OpenDB(*masterConfig.ConnConfig)
 	dbBase, err := gorm.Open(postgres.New(postgres.Config{
 		Conn: masterDB,
@@ -132,6 +163,11 @@ func New(conn *DBConn) (*gorm.DB, error) {
 			replicaConfig, err := pgxpool.ParseConfig(replica.DSN(conn))
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse replica config")
+			}
+
+			// 設置 pgx 特有配置
+			if conn.HealthCheckPeriod > 0 {
+				replicaConfig.HealthCheckPeriod = conn.HealthCheckPeriod
 			}
 
 			replicaDB := stdlib.OpenDB(*replicaConfig.ConnConfig)
