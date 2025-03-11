@@ -33,7 +33,10 @@ type DBConn struct {
 }
 
 // New 創建一個新的 MongoDB 連接
-func New(conn *DBConn) (*mongo.Client, error) {
+func New(
+	ctx context.Context,
+	conn *DBConn,
+) (*mongo.Client, error) {
 	// 構建連線 URI
 	var auth, optionsStr string
 	if conn.Username != "" && conn.Password != "" {
@@ -78,7 +81,7 @@ func New(conn *DBConn) (*mongo.Client, error) {
 		SetMaxConnIdleTime(maxConnIdleTime)
 
 	// 建立連線
-	client, err := mongo.Connect(context.Background(), clientOptions)
+	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "mongo connect failed")
 	}

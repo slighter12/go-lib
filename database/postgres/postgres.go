@@ -1,7 +1,6 @@
 package postgres
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -157,22 +156,4 @@ func New(conn *DBConn) (*gorm.DB, error) {
 	}
 
 	return dbBase, nil
-}
-
-// Close 關閉數據庫連接
-func Close(db *gorm.DB) error {
-	sqlDB, err := db.DB()
-	if err != nil {
-		return errors.Wrap(err, "failed to get underlying DB")
-	}
-	return sqlDB.Close()
-}
-
-// Ping 檢查數據庫連接是否正常
-func Ping(ctx context.Context, db *gorm.DB) error {
-	sqlDB, err := db.DB()
-	if err != nil {
-		return errors.Wrap(err, "failed to get underlying DB")
-	}
-	return sqlDB.PingContext(ctx)
 }

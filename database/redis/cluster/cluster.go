@@ -21,7 +21,7 @@ type Conn struct {
 }
 
 // New 創建一個新的 Redis 集群客戶端
-func New(conn *Conn) (*redis.ClusterClient, error) {
+func New(conn *Conn) *redis.ClusterClient {
 	return redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs:           conn.Address,
 		Username:        conn.Username,
@@ -33,5 +33,5 @@ func New(conn *Conn) (*redis.ClusterClient, error) {
 		MinIdleConns:    conn.MinIdleConns,
 		MaxIdleConns:    conn.MaxIdleConns,
 		ConnMaxIdleTime: conn.ConnMaxIdleTime,
-	}), nil
+	})
 }

@@ -1,7 +1,6 @@
 package sentinel
 
 import (
-	"context"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -9,20 +8,14 @@ import (
 
 // Conn Redis 哨兵連線配置
 type Conn struct {
-	// 哨兵節點地址
-	SentinelAddrs []string `json:"sentinelAddrs" yaml:"sentinelAddrs"`
-	// 主節點名稱
-	MasterName string `json:"masterName" yaml:"masterName"`
-	// 認證信息
-	Username string `json:"username" yaml:"username"`
-	Password string `json:"password" yaml:"password"`
-	// 資料庫編號
-	DB int `json:"db" yaml:"db"`
-	// 超時設定
-	DialTimeout  time.Duration `json:"dialTimeout" yaml:"dialTimeout"`
-	ReadTimeout  time.Duration `json:"readTimeout" yaml:"readTimeout"`
-	WriteTimeout time.Duration `json:"writeTimeout" yaml:"writeTimeout"`
-	// 連線池設定
+	MasterName      string        `json:"masterName" yaml:"masterName"`
+	Address         []string      `json:"address" yaml:"address"`
+	Username        string        `json:"username" yaml:"username"`
+	Password        string        `json:"password" yaml:"password"`
+	DB              int           `json:"db" yaml:"db"`
+	DialTimeout     time.Duration `json:"dialTimeout" yaml:"dialTimeout"`
+	ReadTimeout     time.Duration `json:"readTimeout" yaml:"readTimeout"`
+	WriteTimeout    time.Duration `json:"writeTimeout" yaml:"writeTimeout"`
 	PoolSize        int           `json:"poolSize"  yaml:"poolSize"`
 	MinIdleConns    int           `json:"minIdleConns" yaml:"minIdleConns"`
 	MaxIdleConns    int           `json:"maxIdleConns" yaml:"maxIdleConns"`
@@ -30,10 +23,10 @@ type Conn struct {
 }
 
 // New 創建一個新的 Redis 哨兵客戶端
-func New(conn *Conn) (*redis.Client, error) {
+func New(conn *Conn) *redis.Client {
 	return redis.NewFailoverClient(&redis.FailoverOptions{
 		MasterName:      conn.MasterName,
-		SentinelAddrs:   conn.SentinelAddrs,
+		SentinelAddrs:   conn.Address,
 		Username:        conn.Username,
 		Password:        conn.Password,
 		DB:              conn.DB,
@@ -44,15 +37,5 @@ func New(conn *Conn) (*redis.Client, error) {
 		MinIdleConns:    conn.MinIdleConns,
 		MaxIdleConns:    conn.MaxIdleConns,
 		ConnMaxIdleTime: conn.ConnMaxIdleTime,
-	}), nil
-}
-
-// Close 關閉 Redis 哨兵連接
-func Close(client *redis.Client) error {
-	return client.Close()
-}
-
-// Ping 檢查 Redis 哨兵連接是否正常
-func Ping(ctx context.Context, client *redis.Client) error {
-	return client.Ping(ctx).Err()
+	})
 }
