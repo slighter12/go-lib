@@ -1,4 +1,4 @@
-module github.com/slighter12/go-lib/database/redis
+module github.com/slighter12/go-lib/database/redis/sentinel
 
 go 1.23.6
 

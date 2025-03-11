@@ -1,4 +1,4 @@
-package redis
+package cluster
 
 import (
 	"time"
@@ -6,7 +6,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Conn Redis 連線配置
+// Conn Redis 集群連線配置
 type Conn struct {
 	Address         []string      `json:"address" yaml:"address"`
 	Username        string        `json:"username" yaml:"username"`
@@ -20,8 +20,8 @@ type Conn struct {
 	ConnMaxIdleTime time.Duration `json:"connMaxIdleTime" yaml:"connMaxIdleTime"`
 }
 
-// NewClusterClient 創建一個新的 Redis 集群客戶端
-func NewClusterClient(conn *Conn) (*redis.ClusterClient, error) {
+// New 創建一個新的 Redis 集群客戶端
+func New(conn *Conn) (*redis.ClusterClient, error) {
 	return redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs:           conn.Address,
 		Username:        conn.Username,
