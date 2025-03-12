@@ -9,20 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - MySQL connection management with GORM support
-  - Connection pool configuration
-  - Timeout settings
+  - Connection pool configuration with customizable settings
+  - Automatic retry and failover support
   - Health check methods
 - PostgreSQL connection management with GORM support
-  - Connection pool configuration
-  - Timeout settings
+  - Connection pool configuration with customizable settings
+  - Statement timeout and idle transaction timeout settings
   - Health check methods
 - Redis connection management
-  - Standalone mode support
-  - Sentinel mode support
-  - Cluster mode support
+  - Standalone mode with single node support
+  - Sentinel mode with high availability
+  - Cluster mode with sharding support
   - Connection pool configuration
   - Health check methods
 - MongoDB connection management
-  - Connection pool configuration
-  - Timeout settings
+  - Connection pool configuration with customizable settings
+  - Timeout settings for operations
   - Health check methods 

@@ -43,6 +43,11 @@ cfg := &mysql.DBConn{
     Username: "user",
     Password: "pass",
     Database: "dbname",
+    Pool: mysql.Pool{
+        MaxIdleConns: 10,
+        MaxOpenConns: 100,
+        ConnMaxLifetime: time.Hour,
+    },
 }
 
 db, err := mysql.New(cfg)
@@ -62,6 +67,11 @@ cfg := &postgres.DBConn{
     Username: "user",
     Password: "pass",
     Database: "dbname",
+    Pool: postgres.Pool{
+        MaxIdleConns: 10,
+        MaxOpenConns: 100,
+        ConnMaxLifetime: time.Hour,
+    },
 }
 
 db, err := postgres.New(cfg)
@@ -80,9 +90,36 @@ cfg := &single.Conn{
     Host:     "localhost",
     Port:     6379,
     Password: "pass",
+    DB:       0,
 }
 
 client := single.New(cfg)
+```
+
+Sentinel mode:
+```go
+import "github.com/slighter12/go-lib/database/redis/sentinel"
+
+cfg := &sentinel.Conn{
+    MasterName: "mymaster",
+    Addrs:      []string{"localhost:26379"},
+    Password:   "pass",
+    DB:         0,
+}
+
+client := sentinel.New(cfg)
+```
+
+Cluster mode:
+```go
+import "github.com/slighter12/go-lib/database/redis/cluster"
+
+cfg := &cluster.Conn{
+    Addrs:    []string{"localhost:7000", "localhost:7001"},
+    Password: "pass",
+}
+
+client := cluster.New(cfg)
 ```
 
 ### MongoDB
@@ -93,6 +130,10 @@ import "github.com/slighter12/go-lib/database/mongo"
 cfg := &mongo.DBConn{
     URI:      "mongodb://localhost:27017",
     Database: "dbname",
+    Pool: mongo.Pool{
+        MaxPoolSize: 100,
+        MinPoolSize: 10,
+    },
 }
 
 client, err := mongo.New(cfg)
