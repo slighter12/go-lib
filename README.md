@@ -2,6 +2,14 @@
 
 A collection of Go libraries for database connections and common utilities.
 
+## Requirements
+
+- Go 1.23.6 or higher
+
+## Version
+
+Current stable version: v1.0.0
+
 ## Features
 
 - Database Connections
@@ -12,22 +20,22 @@ A collection of Go libraries for database connections and common utilities.
 
 ## Installation
 
-Each package can be installed independently:
+Each package can be installed independently. It's recommended to use the latest stable version:
 
 ```bash
 # MySQL
-go get github.com/slighter12/go-lib/database/mysql
+go get github.com/slighter12/go-lib/database/mysql@v1.0.0
 
 # PostgreSQL
-go get github.com/slighter12/go-lib/database/postgres
+go get github.com/slighter12/go-lib/database/postgres@v1.0.0
 
 # Redis (choose one)
-go get github.com/slighter12/go-lib/database/redis/single    # Standalone mode
-go get github.com/slighter12/go-lib/database/redis/sentinel  # Sentinel mode
-go get github.com/slighter12/go-lib/database/redis/cluster   # Cluster mode
+go get github.com/slighter12/go-lib/database/redis/single@v1.0.0    # Standalone mode
+go get github.com/slighter12/go-lib/database/redis/sentinel@v1.0.0  # Sentinel mode
+go get github.com/slighter12/go-lib/database/redis/cluster@v1.0.0   # Cluster mode
 
 # MongoDB
-go get github.com/slighter12/go-lib/database/mongo
+go get github.com/slighter12/go-lib/database/mongo@v1.0.0
 ```
 
 ## Usage
