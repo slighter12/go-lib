@@ -1,22 +1,20 @@
 package mongo
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const (
 	_defaultMaxPoolSize     = 100
 	_defaultMinPoolSize     = 10
 	_defaultMaxConnIdleTime = 5 * time.Minute
-	_defaultConnectTimeout  = 10 * time.Second
 )
 
 // DBConn MongoDB 連線配置
@@ -33,10 +31,7 @@ type DBConn struct {
 }
 
 // New 創建一個新的 MongoDB 連接
-func New(
-	ctx context.Context,
-	conn *DBConn,
-) (*mongo.Client, error) {
+func New(conn *DBConn) (*mongo.Client, error) {
 	// 構建連線 URI
 	var auth, optionsStr string
 	if conn.Username != "" && conn.Password != "" {
@@ -80,8 +75,12 @@ func New(
 		SetMinPoolSize(minPoolSize).
 		SetMaxConnIdleTime(maxConnIdleTime)
 
+	if conn.ConnectTimeout > 0 {
+		clientOptions.SetConnectTimeout(conn.ConnectTimeout)
+	}
+
 	// 建立連線
-	client, err := mongo.Connect(ctx, clientOptions)
+	client, err := mongo.Connect(clientOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "mongo connect failed")
 	}

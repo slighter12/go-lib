@@ -1,0 +1,13 @@
+go 1.24.9
+
+use (
+	./database/mongo
+	./database/mysql
+	./database/postgres
+	./database/redis/cluster
+	./database/redis/sentinel
+	./database/redis/single
+	./database/valkey/cluster
+	./database/valkey/sentinel
+	./database/valkey/single
+)
