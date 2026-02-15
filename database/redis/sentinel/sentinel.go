@@ -7,16 +7,16 @@ import (
 )
 
 const (
-	_defaultPoolSize     = 25              // 默認連接池大小
-	_defaultMinIdleConns = 10              // 默認最小空閒連接數
-	_defaultMaxIdleConns = 25              // 默認最大空閒連接數
-	_defaultDialTimeout  = 5 * time.Second // 默認連接超時時間
-	_defaultReadTimeout  = 3 * time.Second // 默認讀取超時時間
-	_defaultWriteTimeout = 3 * time.Second // 默認寫入超時時間
-	_defaultConnMaxIdle  = 5 * time.Minute // 默認連接最大空閒時間
+	_defaultPoolSize     = 25              // Default connection pool size.
+	_defaultMinIdleConns = 10              // Default minimum idle connections.
+	_defaultMaxIdleConns = 25              // Default maximum idle connections.
+	_defaultDialTimeout  = 5 * time.Second // Default connection timeout.
+	_defaultReadTimeout  = 3 * time.Second // Default read timeout.
+	_defaultWriteTimeout = 3 * time.Second // Default write timeout.
+	_defaultConnMaxIdle  = 5 * time.Minute // Default max idle connection duration.
 )
 
-// Conn Redis 哨兵連線配置
+// Conn Redis sentinel connection config.
 type Conn struct {
 	MasterName      string        `json:"masterName" yaml:"masterName"`
 	Address         []string      `json:"address" yaml:"address"`
@@ -32,9 +32,9 @@ type Conn struct {
 	ConnMaxIdleTime time.Duration `json:"connMaxIdleTime" yaml:"connMaxIdleTime"`
 }
 
-// New 創建一個新的 Redis 哨兵客戶端
+// New creates a new Redis sentinel client.
 func New(conn *Conn) *redis.Client {
-	// 使用默認值
+	// Use defaults.
 	poolSize := _defaultPoolSize
 	if conn.PoolSize > 0 {
 		poolSize = conn.PoolSize

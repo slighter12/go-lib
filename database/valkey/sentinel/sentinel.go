@@ -8,13 +8,13 @@ import (
 )
 
 const (
-	_defaultBlockingPoolSize    = 25              // 默認連接池大小
-	_defaultDialTimeout         = 5 * time.Second // 默認連接超時時間
-	_defaultConnWriteTimeout    = 3 * time.Second // 默認讀寫超時時間
-	_defaultBlockingPoolCleanup = 5 * time.Minute // 默認連接池清理時間
+	_defaultBlockingPoolSize    = 25              // Default connection pool size.
+	_defaultDialTimeout         = 5 * time.Second // Default connection timeout.
+	_defaultConnWriteTimeout    = 3 * time.Second // Default read/write timeout.
+	_defaultBlockingPoolCleanup = 5 * time.Minute // Default connection pool cleanup interval.
 )
 
-// Conn Valkey 哨兵連線配置
+// Conn Valkey sentinel connection config.
 type Conn struct {
 	MasterName          string        `json:"masterName" yaml:"masterName"`
 	Address             []string      `json:"address" yaml:"address"`
@@ -30,9 +30,9 @@ type Conn struct {
 	BlockingPoolMinSize int           `json:"blockingPoolMinSize" yaml:"blockingPoolMinSize"`
 }
 
-// New 創建一個新的 Valkey 哨兵客戶端
+// New creates a new Valkey sentinel client.
 func New(conn *Conn) (valkey.Client, error) {
-	// 使用默認值
+	// Use defaults.
 	blockingPoolSize := _defaultBlockingPoolSize
 	if conn.BlockingPoolSize > 0 {
 		blockingPoolSize = conn.BlockingPoolSize

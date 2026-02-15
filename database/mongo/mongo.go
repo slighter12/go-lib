@@ -17,7 +17,7 @@ const (
 	_defaultMaxConnIdleTime = 5 * time.Minute
 )
 
-// DBConn MongoDB 連線配置
+// DBConn MongoDB connection config
 type DBConn struct {
 	Hosts           []string          `json:"hosts" yaml:"hosts"`
 	Username        string            `json:"username" yaml:"username"`
@@ -30,9 +30,9 @@ type DBConn struct {
 	Options         map[string]string `json:"options" yaml:"options"`
 }
 
-// New 創建一個新的 MongoDB 連接
+// New creates a new MongoDB client
 func New(conn *DBConn) (*mongo.Client, error) {
-	// 構建連線 URI
+	// Build connection URI.
 	var auth, optionsStr string
 	if conn.Username != "" && conn.Password != "" {
 		auth = fmt.Sprintf("%s:%s@", conn.Username, conn.Password)
@@ -41,7 +41,7 @@ func New(conn *DBConn) (*mongo.Client, error) {
 	hosts := strings.Join(conn.Hosts, ",")
 	authDB := conn.AuthDB
 
-	// 處理額外選項
+	// Handle extra options.
 	if len(conn.Options) > 0 {
 		var params []string
 		for key, value := range conn.Options {
@@ -52,7 +52,7 @@ func New(conn *DBConn) (*mongo.Client, error) {
 
 	uri := fmt.Sprintf("mongodb://%s%s/%s%s", auth, hosts, authDB, optionsStr)
 
-	// 設置連線池參數
+	// Configure connection pool settings.
 	maxPoolSize := conn.MaxPoolSize
 	if maxPoolSize == 0 {
 		maxPoolSize = _defaultMaxPoolSize
@@ -68,7 +68,7 @@ func New(conn *DBConn) (*mongo.Client, error) {
 		maxConnIdleTime = conn.MaxConnIdleTime
 	}
 
-	// 設置客戶端選項
+	// Configure client options.
 	clientOptions := options.Client().
 		ApplyURI(uri).
 		SetMaxPoolSize(maxPoolSize).
@@ -79,7 +79,7 @@ func New(conn *DBConn) (*mongo.Client, error) {
 		clientOptions.SetConnectTimeout(conn.ConnectTimeout)
 	}
 
-	// 建立連線
+	// Establish connection.
 	client, err := mongo.Connect(clientOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "mongo connect failed")
