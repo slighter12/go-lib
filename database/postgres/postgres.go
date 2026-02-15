@@ -28,47 +28,47 @@ const (
 	PresetSupabaseTransaction Preset = "supabase_transaction"
 )
 
-// DBConn 整合了主庫和從庫的配置
+// DBConn combines primary and replica configurations.
 type DBConn struct {
-	// 主庫配置
+	// Primary configuration.
 	Master ConnectionConfig `json:"master" yaml:"master"`
 
-	// 從庫配置列表
+	// Replica configuration list.
 	Replicas []ConnectionConfig `json:"replicas" yaml:"replicas"`
 
-	// 連接池配置
+	// Connection pool settings.
 	MaxIdleConns    int           `json:"maxIdleConns" yaml:"maxIdleConns"`
 	MaxOpenConns    int           `json:"maxOpenConns" yaml:"maxOpenConns"`
 	ConnMaxLifetime time.Duration `json:"connMaxLifetime" yaml:"connMaxLifetime"`
 
-	// 數據庫名稱
+	// Database name.
 	Database string `json:"database" yaml:"database"`
 
-	// PostgreSQL 特有配置
+	// PostgreSQL-specific settings.
 	Schema     string `json:"schema" yaml:"schema"`
 	SearchPath string `json:"searchPath" yaml:"searchPath"`
 	SSLMode    string `json:"sslMode" yaml:"sslMode"`
 
-	// PostgreSQL 超時設置
+	// PostgreSQL timeout settings.
 	StatementTimeout                time.Duration `json:"statementTimeout" yaml:"statementTimeout"`                               // statement_timeout
 	LockTimeout                     time.Duration `json:"lockTimeout" yaml:"lockTimeout"`                                         // lock_timeout
 	IdleInTransactionSessionTimeout time.Duration `json:"idleInTransactionSessionTimeout" yaml:"idleInTransactionSessionTimeout"` // idle_in_transaction_session_timeout
 
-	// pgx 特有配置
+	// pgx-specific settings.
 	ApplicationName   string            `json:"applicationName" yaml:"applicationName"`
 	RuntimeParams     map[string]string `json:"runtimeParams" yaml:"runtimeParams"`
 	HealthCheckPeriod time.Duration     `json:"healthCheckPeriod" yaml:"healthCheckPeriod"`
 
-	// Preset 配置 - 預設的連線行為
-	// 可選值: "", PresetSupabaseTransaction
+	// Preset configuration for default connection behavior.
+	// Optional values: "", PresetSupabaseTransaction.
 	Preset Preset `json:"preset" yaml:"preset"`
-	// GORM 配置 - 覆寫 preset 的行為
+	// GORM settings that override preset behavior.
 	GORM *GORMConfig `json:"gorm" yaml:"gorm"`
-	// PGX 配置 - 驅動層配置
+	// PGX settings at the driver layer.
 	PGX *PGXConfig `json:"pgx" yaml:"pgx"`
 }
 
-// ConnectionConfig 定義單個數據庫連接的配置
+// ConnectionConfig defines the configuration for a single database connection.
 type ConnectionConfig struct {
 	Host     string `json:"host" yaml:"host"`
 	Port     string `json:"port" yaml:"port"`
@@ -76,24 +76,24 @@ type ConnectionConfig struct {
 	Password string `json:"password" yaml:"password"`
 }
 
-// GORMConfig 定義 GORM 層的行為配置
+// GORMConfig defines behavior settings at the GORM layer.
 type GORMConfig struct {
-	// 跳過 GORM 預設的隱式交易
-	// 適用於 transaction pooler 如 Supabase/pgBouncer
+	// Skip GORM default implicit transactions.
+	// Useful for transaction poolers such as Supabase/pgBouncer.
 	SkipDefaultTransaction *bool `json:"skipDefaultTransaction" yaml:"skipDefaultTransaction"`
-	// 停用 server-side prepared statements
-	// 適用於 transaction pooler
+	// Disable server-side prepared statements.
+	// Useful for transaction poolers.
 	PrepareStmt *bool `json:"prepareStmt" yaml:"prepareStmt"`
 }
 
-// PGXConfig 定義 pgx 驅動層的配置
+// PGXConfig defines settings at the pgx driver layer.
 type PGXConfig struct {
-	// Statement cache 容量，設為 0 可完全停用
-	// 適用於 transaction pooler
+	// Statement cache capacity; set to 0 to disable entirely.
+	// Useful for transaction poolers.
 	StatementCacheCap *int `json:"statementCacheCap" yaml:"statementCacheCap"`
 }
 
-// DSN 生成PostgreSQL連接字符串
+// DSN generates a PostgreSQL connection string.
 func (c *ConnectionConfig) DSN(cfg *DBConn) string {
 	sslMode := "disable"
 	if cfg.SSLMode != "" {
@@ -114,7 +114,7 @@ func (c *ConnectionConfig) DSN(cfg *DBConn) string {
 	appendDSNParam(&dsn, "sslmode", sslMode)
 	appendDSNParam(&dsn, "search_path", searchPath)
 
-	// 添加超時設置
+	// Apply timeout settings.
 	if cfg.StatementTimeout > 0 {
 		appendDSNParam(&dsn, "statement_timeout", strconv.FormatInt(cfg.StatementTimeout.Milliseconds(), 10))
 	}
@@ -125,12 +125,12 @@ func (c *ConnectionConfig) DSN(cfg *DBConn) string {
 		appendDSNParam(&dsn, "idle_in_transaction_session_timeout", strconv.FormatInt(cfg.IdleInTransactionSessionTimeout.Milliseconds(), 10))
 	}
 
-	// 添加 pgx 特有參數
+	// Add pgx-specific parameters.
 	if cfg.ApplicationName != "" {
 		appendDSNParam(&dsn, "application_name", cfg.ApplicationName)
 	}
 
-	// 添加運行時參數
+	// Add runtime parameters.
 	if len(cfg.RuntimeParams) > 0 {
 		keys := make([]string, 0, len(cfg.RuntimeParams))
 		for key := range cfg.RuntimeParams {
@@ -205,29 +205,29 @@ func setupConnPool(db *gorm.DB, conn *DBConn) error {
 	return nil
 }
 
-// New 創建一個新的 PostgreSQL 數據庫連接
+// New creates a new PostgreSQL database connection.
 func New(conn *DBConn) (*gorm.DB, error) {
 	preset := resolvePreset(conn.Preset)
 	if conn.Preset != "" && preset == "" {
 		log.Printf("postgres: unknown preset %q, using default behavior", conn.Preset)
 	}
 
-	// 創建主庫連接
+	// Create primary connection.
 	masterConfig, err := pgxpool.ParseConfig(conn.Master.DSN(conn))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse master config")
 	}
 
-	// 設置 pgx 特有配置
+	// Set pgx-specific settings.
 	if conn.HealthCheckPeriod > 0 {
 		masterConfig.HealthCheckPeriod = conn.HealthCheckPeriod
 	}
 
-	// 套用 PGX 配置
+	// Apply PGX settings.
 	applyPGXConfig(masterConfig.ConnConfig, conn, preset)
 
 	masterDB := stdlib.OpenDB(*masterConfig.ConnConfig)
-	// 套用 GORM 配置
+	// Apply GORM settings.
 	gormConfig := &gorm.Config{}
 	applyGORMConfig(gormConfig, conn, preset)
 	dbBase, err := gorm.Open(postgres.New(postgres.Config{
@@ -238,7 +238,7 @@ func New(conn *DBConn) (*gorm.DB, error) {
 		return nil, errors.Wrap(err, "failed to create master connection")
 	}
 
-	// 如果有從庫配置，設置讀寫分離
+	// Configure read/write splitting when replicas are provided.
 	if len(conn.Replicas) > 0 {
 		var replicas []gorm.Dialector
 		for _, replica := range conn.Replicas {
@@ -247,7 +247,7 @@ func New(conn *DBConn) (*gorm.DB, error) {
 				return nil, errors.Wrap(err, "failed to parse replica config")
 			}
 
-			// 設置 pgx 特有配置
+			// Set pgx-specific settings.
 			if conn.HealthCheckPeriod > 0 {
 				replicaConfig.HealthCheckPeriod = conn.HealthCheckPeriod
 			}
@@ -259,7 +259,7 @@ func New(conn *DBConn) (*gorm.DB, error) {
 			}))
 		}
 
-		// 註冊 dbresolver 插件
+		// Register dbresolver plugin.
 		err = dbBase.Use(dbresolver.Register(dbresolver.Config{
 			Replicas: replicas,
 			Policy:   dbresolver.RandomPolicy{},
@@ -277,19 +277,19 @@ func New(conn *DBConn) (*gorm.DB, error) {
 	return dbBase, nil
 }
 
-// applyGORMConfig 套用 GORM 配置
+// applyGORMConfig applies GORM settings.
 func applyGORMConfig(cfg *gorm.Config, conn *DBConn, preset Preset) {
 	if conn.GORM == nil && preset == "" {
 		return
 	}
-	// 解析 preset
+	// Resolve preset.
 	skipDefaultTx := cfg.SkipDefaultTransaction
 	prepareStmt := cfg.PrepareStmt
 	if preset == PresetSupabaseTransaction {
 		skipDefaultTx = true
 		prepareStmt = false
 	}
-	// 覆寫為 explicit config
+	// Override with explicit config.
 	if conn.GORM != nil {
 		if conn.GORM.SkipDefaultTransaction != nil {
 			skipDefaultTx = *conn.GORM.SkipDefaultTransaction
@@ -302,30 +302,30 @@ func applyGORMConfig(cfg *gorm.Config, conn *DBConn, preset Preset) {
 	cfg.PrepareStmt = prepareStmt
 }
 
-// applyPGXConfig 套用 PGX 配置
+// applyPGXConfig applies PGX settings.
 func applyPGXConfig(cfg *pgx.ConnConfig, conn *DBConn, preset Preset) {
 	hasPreset := preset != ""
 	hasExplicitStatementCacheCap := conn.PGX != nil && conn.PGX.StatementCacheCap != nil
 	if !hasPreset && !hasExplicitStatementCacheCap {
 		return
 	}
-	// 解析 preset
+	// Resolve preset.
 	statementCacheCap := cfg.StatementCacheCapacity
 	if preset == PresetSupabaseTransaction {
 		statementCacheCap = 0
 	}
-	// 覆寫為 explicit config
+	// Override with explicit config.
 	if conn.PGX != nil {
 		if conn.PGX.StatementCacheCap != nil {
 			statementCacheCap = *conn.PGX.StatementCacheCap
 		}
 	}
 
-	// 設置 statement cache capacity
-	// 設為 0 表示停用 statement cache
+	// Set statement cache capacity.
+	// A value of 0 disables the statement cache.
 	cfg.StatementCacheCapacity = statementCacheCap
 	if statementCacheCap == 0 && (preset == PresetSupabaseTransaction || hasExplicitStatementCacheCap) {
-		// 對 transaction pooler 關閉自動 prepare 行為
+		// Disable auto-prepare behavior for transaction poolers.
 		cfg.DefaultQueryExecMode = pgx.QueryExecModeExec
 	}
 }
