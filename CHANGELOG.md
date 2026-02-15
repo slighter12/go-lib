@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v1.0.0] - 2024-03-12
 
 ### Added
+
 - MySQL connection management with GORM support
   - Connection pool configuration with customizable settings
   - Read/write timeout settings
@@ -28,4 +29,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Connection timeout settings
   - Authentication support
   - Timeout settings for operations
-  - Health check methods 
+  - Health check methods

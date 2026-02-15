@@ -2,7 +2,7 @@ module github.com/slighter12/go-lib/database/redis/single
 
 go 1.23.6
 
-require github.com/redis/go-redis/v9 v9.7.3
+require github.com/redis/go-redis/v9 v9.17.3
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

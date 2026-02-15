@@ -1,51 +1,37 @@
 package cluster
 
 import (
+	"net"
 	"time"
 
 	"github.com/valkey-io/valkey-go"
 )
 
 const (
-	_defaultPoolSize     = 25              // 默認連接池大小
-	_defaultMinIdleConns = 10              // 默認最小空閒連接數
-	_defaultMaxIdleConns = 25              // 默認最大空閒連接數
-	_defaultDialTimeout  = 5 * time.Second // 默認連接超時時間
-	_defaultReadTimeout  = 3 * time.Second // 默認讀取超時時間
-	_defaultWriteTimeout = 3 * time.Second // 默認寫入超時時間
-	_defaultConnMaxIdle  = 5 * time.Minute // 默認連接最大空閒時間
+	_defaultBlockingPoolSize    = 25              // 默認連接池大小
+	_defaultDialTimeout         = 5 * time.Second // 默認連接超時時間
+	_defaultConnWriteTimeout    = 3 * time.Second // 默認讀寫超時時間
+	_defaultBlockingPoolCleanup = 5 * time.Minute // 默認連接池清理時間
 )
 
 // Conn Valkey 集群連線配置
 type Conn struct {
-	Address         []string      `json:"address" yaml:"address"`
-	Username        string        `json:"username" yaml:"username"`
-	Password        string        `json:"password" yaml:"password"`
-	DialTimeout     time.Duration `json:"dialTimeout" yaml:"dialTimeout"`
-	ReadTimeout     time.Duration `json:"readTimeout" yaml:"readTimeout"`
-	WriteTimeout    time.Duration `json:"writeTimeout" yaml:"writeTimeout"`
-	PoolSize        int           `json:"poolSize"  yaml:"poolSize"`
-	MinIdleConns    int           `json:"minIdleConns" yaml:"minIdleConns"`
-	MaxIdleConns    int           `json:"maxIdleConns" yaml:"maxIdleConns"`
-	ConnMaxIdleTime time.Duration `json:"connMaxIdleTime" yaml:"connMaxIdleTime"`
+	Address             []string      `json:"address" yaml:"address"`
+	Username            string        `json:"username" yaml:"username"`
+	Password            string        `json:"password" yaml:"password"`
+	DialTimeout         time.Duration `json:"dialTimeout" yaml:"dialTimeout"`
+	ConnWriteTimeout    time.Duration `json:"connWriteTimeout" yaml:"connWriteTimeout"`
+	BlockingPoolSize    int           `json:"blockingPoolSize" yaml:"blockingPoolSize"`
+	BlockingPoolCleanup time.Duration `json:"blockingPoolCleanup" yaml:"blockingPoolCleanup"`
+	BlockingPoolMinSize int           `json:"blockingPoolMinSize" yaml:"blockingPoolMinSize"`
 }
 
 // New 創建一個新的 Valkey 集群客戶端
-func New(conn *Conn) valkey.ClusterClient {
+func New(conn *Conn) (valkey.Client, error) {
 	// 使用默認值
-	poolSize := _defaultPoolSize
-	if conn.PoolSize > 0 {
-		poolSize = conn.PoolSize
-	}
-
-	minIdleConns := _defaultMinIdleConns
-	if conn.MinIdleConns > 0 {
-		minIdleConns = conn.MinIdleConns
-	}
-
-	maxIdleConns := _defaultMaxIdleConns
-	if conn.MaxIdleConns > 0 {
-		maxIdleConns = conn.MaxIdleConns
+	blockingPoolSize := _defaultBlockingPoolSize
+	if conn.BlockingPoolSize > 0 {
+		blockingPoolSize = conn.BlockingPoolSize
 	}
 
 	dialTimeout := _defaultDialTimeout
@@ -53,31 +39,25 @@ func New(conn *Conn) valkey.ClusterClient {
 		dialTimeout = conn.DialTimeout
 	}
 
-	readTimeout := _defaultReadTimeout
-	if conn.ReadTimeout > 0 {
-		readTimeout = conn.ReadTimeout
+	connWriteTimeout := _defaultConnWriteTimeout
+	if conn.ConnWriteTimeout > 0 {
+		connWriteTimeout = conn.ConnWriteTimeout
 	}
 
-	writeTimeout := _defaultWriteTimeout
-	if conn.WriteTimeout > 0 {
-		writeTimeout = conn.WriteTimeout
+	blockingPoolCleanup := _defaultBlockingPoolCleanup
+	if conn.BlockingPoolCleanup > 0 {
+		blockingPoolCleanup = conn.BlockingPoolCleanup
 	}
 
-	connMaxIdleTime := _defaultConnMaxIdle
-	if conn.ConnMaxIdleTime > 0 {
-		connMaxIdleTime = conn.ConnMaxIdleTime
-	}
-
-	return valkey.NewClusterClient(valkey.ClusterOptions{
-		InitAddress:     conn.Address,
-		Username:        conn.Username,
-		Password:        conn.Password,
-		DialTimeout:     dialTimeout,
-		ReadTimeout:     readTimeout,
-		WriteTimeout:    writeTimeout,
-		PoolSize:        poolSize,
-		MinIdleConns:    minIdleConns,
-		MaxIdleConns:    maxIdleConns,
-		ConnMaxIdleTime: connMaxIdleTime,
+	return valkey.NewClient(valkey.ClientOption{
+		InitAddress:         conn.Address,
+		Username:            conn.Username,
+		Password:            conn.Password,
+		Dialer:              net.Dialer{Timeout: dialTimeout},
+		ConnWriteTimeout:    connWriteTimeout,
+		BlockingPoolSize:    blockingPoolSize,
+		BlockingPoolCleanup: blockingPoolCleanup,
+		BlockingPoolMinSize: conn.BlockingPoolMinSize,
+		ClusterOption:       valkey.ClusterOption{},
 	})
 }
