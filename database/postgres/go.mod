@@ -1,9 +1,9 @@
 module github.com/slighter12/go-lib/database/postgres
 
-go 1.24.0
+go 1.25.0
 
 require (
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.0
 	github.com/pkg/errors v0.9.1
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
