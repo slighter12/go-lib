@@ -1,11 +1,12 @@
 package mysql
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/plugin/dbresolver"
@@ -97,15 +98,22 @@ func (c *ConnectionConfig) DSN(cfg *DBConn) string {
 
 // New creates a new database connection with read/write splitting.
 func New(conn *DBConn) (*gorm.DB, error) {
+	if conn == nil {
+		return nil, errors.New("database connection config is required")
+	}
 	if conn.Database == "" {
 		return nil, errors.New("database name is required")
 	}
+	maxIdleConns, maxOpenConns, maxLifetime := poolSettings(conn)
 
 	// Create primary connection.
 	masterDSN := conn.Master.DSN(conn)
-	dbBase, err := gorm.Open(mysql.Open(masterDSN), &gorm.Config{})
+	dbBase, err := gorm.Open(mysql.New(mysql.Config{
+		DSN:                       masterDSN,
+		SkipInitializeWithVersion: true,
+	}), &gorm.Config{DisableAutomaticPing: true})
 	if err != nil {
-		return nil, errors.Wrapf(err, "open database connection: %s", masterDSN)
+		return nil, fmt.Errorf("open database connection: %w", err)
 	}
 
 	// Configure read/write splitting when replicas are provided.
@@ -113,44 +121,50 @@ func New(conn *DBConn) (*gorm.DB, error) {
 		var replicas []gorm.Dialector
 		for _, replica := range conn.Replicas {
 			replicaDSN := replica.DSN(conn)
-			replicas = append(replicas, mysql.Open(replicaDSN))
+			replicas = append(replicas, mysql.New(mysql.Config{
+				DSN:                       replicaDSN,
+				SkipInitializeWithVersion: true,
+			}))
 		}
 
 		// Register dbresolver plugin.
-		err = dbBase.Use(dbresolver.Register(dbresolver.Config{
+		resolver := dbresolver.Register(dbresolver.Config{
 			Replicas: replicas,
 			Policy:   dbresolver.RandomPolicy{},
-		}))
+		}).SetMaxIdleConns(maxIdleConns).SetMaxOpenConns(maxOpenConns).SetConnMaxLifetime(maxLifetime)
+		err = dbBase.Use(resolver)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to register dbresolver")
+			return nil, fmt.Errorf("register dbresolver: %w", err)
 		}
 	}
 
 	// Get underlying SQL DB object to configure pool settings.
 	sqlDB, err := dbBase.DB()
 	if err != nil {
-		return nil, errors.Wrap(err, "get connect pool failed")
-	}
-
-	// Configure connection pool settings.
-	maxIdleConns := _defaultMaxIdleConns
-	if conn.MaxIdleConns > 0 {
-		maxIdleConns = conn.MaxIdleConns
-	}
-
-	maxOpenConns := _defaultMaxOpenConns
-	if conn.MaxOpenConns > 0 {
-		maxOpenConns = conn.MaxOpenConns
-	}
-
-	maxLifeTime := _defaultMaxLifeTime
-	if conn.ConnMaxLifetime > 0 {
-		maxLifeTime = conn.ConnMaxLifetime
+		return nil, fmt.Errorf("get connection pool: %w", err)
 	}
 
 	sqlDB.SetMaxIdleConns(maxIdleConns)
 	sqlDB.SetMaxOpenConns(maxOpenConns)
-	sqlDB.SetConnMaxLifetime(maxLifeTime)
+	sqlDB.SetConnMaxLifetime(maxLifetime)
 
 	return dbBase, nil
+}
+
+func poolSettings(conn *DBConn) (maxIdleConns, maxOpenConns int, maxLifetime time.Duration) {
+	maxIdleConns = _defaultMaxIdleConns
+	if conn.MaxIdleConns > 0 {
+		maxIdleConns = conn.MaxIdleConns
+	}
+
+	maxOpenConns = _defaultMaxOpenConns
+	if conn.MaxOpenConns > 0 {
+		maxOpenConns = conn.MaxOpenConns
+	}
+
+	maxLifetime = _defaultMaxLifeTime
+	if conn.ConnMaxLifetime > 0 {
+		maxLifetime = conn.ConnMaxLifetime
+	}
+	return maxIdleConns, maxOpenConns, maxLifetime
 }

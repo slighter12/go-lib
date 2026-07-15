@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"errors"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -31,7 +32,10 @@ type Conn struct {
 }
 
 // New creates a new Redis cluster client.
-func New(conn *Conn) *redis.ClusterClient {
+func New(conn *Conn) (*redis.ClusterClient, error) {
+	if conn == nil {
+		return nil, errors.New("redis connection config is required")
+	}
 	// Use defaults.
 	poolSize := _defaultPoolSize
 	if conn.PoolSize > 0 {
@@ -79,5 +83,5 @@ func New(conn *Conn) *redis.ClusterClient {
 		MinIdleConns:    minIdleConns,
 		MaxIdleConns:    maxIdleConns,
 		ConnMaxIdleTime: connMaxIdleTime,
-	})
+	}), nil
 }

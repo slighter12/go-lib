@@ -1,6 +1,7 @@
 package single
 
 import (
+	"errors"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -32,7 +33,10 @@ type Conn struct {
 }
 
 // New creates a new Redis single-node client.
-func New(conn *Conn) *redis.Client {
+func New(conn *Conn) (*redis.Client, error) {
+	if conn == nil {
+		return nil, errors.New("redis connection config is required")
+	}
 	// Use defaults.
 	poolSize := _defaultPoolSize
 	if conn.PoolSize > 0 {
@@ -81,5 +85,5 @@ func New(conn *Conn) *redis.Client {
 		MinIdleConns:    minIdleConns,
 		MaxIdleConns:    maxIdleConns,
 		ConnMaxIdleTime: connMaxIdleTime,
-	})
+	}), nil
 }

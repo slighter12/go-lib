@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"sort"
 	"strconv"
@@ -8,9 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/pkg/errors"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/plugin/dbresolver"
@@ -55,9 +55,8 @@ type DBConn struct {
 	IdleInTransactionSessionTimeout time.Duration `json:"idleInTransactionSessionTimeout" yaml:"idleInTransactionSessionTimeout"` // idle_in_transaction_session_timeout
 
 	// pgx-specific settings.
-	ApplicationName   string            `json:"applicationName" yaml:"applicationName"`
-	RuntimeParams     map[string]string `json:"runtimeParams" yaml:"runtimeParams"`
-	HealthCheckPeriod time.Duration     `json:"healthCheckPeriod" yaml:"healthCheckPeriod"`
+	ApplicationName string            `json:"applicationName" yaml:"applicationName"`
+	RuntimeParams   map[string]string `json:"runtimeParams" yaml:"runtimeParams"`
 
 	// Preset configuration for default connection behavior.
 	// Optional values: "", PresetSupabaseTransaction.
@@ -180,93 +179,91 @@ func escapeDSNValue(value string) string {
 func setupConnPool(db *gorm.DB, conn *DBConn) error {
 	sqlDB, err := db.DB()
 	if err != nil {
-		return errors.Wrap(err, "failed to get underlying DB")
+		return fmt.Errorf("get underlying DB: %w", err)
 	}
+	maxIdleConns, maxOpenConns, maxLifetime := poolSettings(conn)
+	sqlDB.SetMaxIdleConns(maxIdleConns)
+	sqlDB.SetMaxOpenConns(maxOpenConns)
+	sqlDB.SetConnMaxLifetime(maxLifetime)
+	return nil
+}
 
-	maxIdleConns := _defaultMaxIdleConns
+func poolSettings(conn *DBConn) (maxIdleConns, maxOpenConns int, maxLifetime time.Duration) {
+	maxIdleConns = _defaultMaxIdleConns
 	if conn.MaxIdleConns > 0 {
 		maxIdleConns = conn.MaxIdleConns
 	}
 
-	maxOpenConns := _defaultMaxOpenConns
+	maxOpenConns = _defaultMaxOpenConns
 	if conn.MaxOpenConns > 0 {
 		maxOpenConns = conn.MaxOpenConns
 	}
 
-	maxLifeTime := _defaultMaxLifeTime
+	maxLifetime = _defaultMaxLifeTime
 	if conn.ConnMaxLifetime > 0 {
-		maxLifeTime = conn.ConnMaxLifetime
+		maxLifetime = conn.ConnMaxLifetime
 	}
-
-	sqlDB.SetMaxIdleConns(maxIdleConns)
-	sqlDB.SetMaxOpenConns(maxOpenConns)
-	sqlDB.SetConnMaxLifetime(maxLifeTime)
-
-	return nil
+	return maxIdleConns, maxOpenConns, maxLifetime
 }
 
 // New creates a new PostgreSQL database connection.
 func New(conn *DBConn) (*gorm.DB, error) {
+	if conn == nil {
+		return nil, errors.New("postgres connection config is required")
+	}
 	preset := resolvePreset(conn.Preset)
 	if conn.Preset != "" && preset == "" {
 		log.Printf("postgres: unknown preset %q, using default behavior", conn.Preset)
 	}
 
 	// Create primary connection.
-	masterConfig, err := pgxpool.ParseConfig(conn.Master.DSN(conn))
+	masterConfig, err := pgx.ParseConfig(conn.Master.DSN(conn))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse master config")
-	}
-
-	// Set pgx-specific settings.
-	if conn.HealthCheckPeriod > 0 {
-		masterConfig.HealthCheckPeriod = conn.HealthCheckPeriod
+		return nil, fmt.Errorf("parse master config: %w", err)
 	}
 
 	// Apply PGX settings.
-	applyPGXConfig(masterConfig.ConnConfig, conn, preset)
+	applyPGXConfig(masterConfig, conn, preset)
 
-	masterDB := stdlib.OpenDB(*masterConfig.ConnConfig)
+	masterDB := stdlib.OpenDB(*masterConfig)
 	// Apply GORM settings.
-	gormConfig := &gorm.Config{}
+	gormConfig := &gorm.Config{DisableAutomaticPing: true}
 	applyGORMConfig(gormConfig, conn, preset)
 	dbBase, err := gorm.Open(postgres.New(postgres.Config{
 		Conn: masterDB,
 	}), gormConfig)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create master connection")
+		return nil, fmt.Errorf("create master connection: %w", err)
 	}
+	maxIdleConns, maxOpenConns, maxLifetime := poolSettings(conn)
 
 	// Configure read/write splitting when replicas are provided.
 	if len(conn.Replicas) > 0 {
 		var replicas []gorm.Dialector
 		for _, replica := range conn.Replicas {
-			replicaConfig, err := pgxpool.ParseConfig(replica.DSN(conn))
+			replicaConfig, err := pgx.ParseConfig(replica.DSN(conn))
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse replica config")
+				return nil, fmt.Errorf("parse replica config: %w", err)
 			}
 
-			// Set pgx-specific settings.
-			if conn.HealthCheckPeriod > 0 {
-				replicaConfig.HealthCheckPeriod = conn.HealthCheckPeriod
-			}
-			applyPGXConfig(replicaConfig.ConnConfig, conn, preset)
+			applyPGXConfig(replicaConfig, conn, preset)
 
-			replicaDB := stdlib.OpenDB(*replicaConfig.ConnConfig)
+			replicaDB := stdlib.OpenDB(*replicaConfig)
 			replicas = append(replicas, postgres.New(postgres.Config{
 				Conn: replicaDB,
 			}))
 		}
 
 		// Register dbresolver plugin.
-		err = dbBase.Use(dbresolver.Register(dbresolver.Config{
+		resolver := dbresolver.Register(dbresolver.Config{
 			Replicas: replicas,
 			Policy:   dbresolver.RandomPolicy{},
-		}).SetConnMaxIdleTime(time.Hour))
+		}).SetMaxIdleConns(maxIdleConns).SetMaxOpenConns(maxOpenConns).SetConnMaxLifetime(maxLifetime).SetConnMaxIdleTime(time.Hour)
+		err = dbBase.Use(resolver)
 
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to register dbresolver")
+			return nil, fmt.Errorf("register dbresolver: %w", err)
 		}
 	}
 
