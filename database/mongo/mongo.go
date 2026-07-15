@@ -1,12 +1,12 @@
 package mongo
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -32,25 +32,9 @@ type DBConn struct {
 
 // New creates a new MongoDB client
 func New(conn *DBConn) (*mongo.Client, error) {
-	// Build connection URI.
-	var auth, optionsStr string
-	if conn.Username != "" && conn.Password != "" {
-		auth = fmt.Sprintf("%s:%s@", conn.Username, conn.Password)
+	if conn == nil {
+		return nil, errors.New("mongo connection config is required")
 	}
-
-	hosts := strings.Join(conn.Hosts, ",")
-	authDB := conn.AuthDB
-
-	// Handle extra options.
-	if len(conn.Options) > 0 {
-		var params []string
-		for key, value := range conn.Options {
-			params = append(params, fmt.Sprintf("%s=%s", key, url.QueryEscape(value)))
-		}
-		optionsStr = "?" + strings.Join(params, "&")
-	}
-
-	uri := fmt.Sprintf("mongodb://%s%s/%s%s", auth, hosts, authDB, optionsStr)
 
 	// Configure connection pool settings.
 	maxPoolSize := conn.MaxPoolSize
@@ -70,7 +54,7 @@ func New(conn *DBConn) (*mongo.Client, error) {
 
 	// Configure client options.
 	clientOptions := options.Client().
-		ApplyURI(uri).
+		ApplyURI(connectionURI(conn)).
 		SetMaxPoolSize(maxPoolSize).
 		SetMinPoolSize(minPoolSize).
 		SetMaxConnIdleTime(maxConnIdleTime)
@@ -82,8 +66,30 @@ func New(conn *DBConn) (*mongo.Client, error) {
 	// Establish connection.
 	client, err := mongo.Connect(clientOptions)
 	if err != nil {
-		return nil, errors.Wrap(err, "mongo connect failed")
+		return nil, fmt.Errorf("mongo connect: %w", err)
 	}
 
 	return client, nil
+}
+
+func connectionURI(conn *DBConn) string {
+	var uri strings.Builder
+	uri.WriteString("mongodb://")
+	if conn.Username != "" || conn.Password != "" {
+		uri.WriteString(url.UserPassword(conn.Username, conn.Password).String())
+		uri.WriteByte('@')
+	}
+	uri.WriteString(strings.Join(conn.Hosts, ","))
+	uri.WriteByte('/')
+	uri.WriteString(url.PathEscape(conn.AuthDB))
+
+	options := url.Values{}
+	for key, value := range conn.Options {
+		options.Set(key, value)
+	}
+	if encoded := options.Encode(); encoded != "" {
+		uri.WriteByte('?')
+		uri.WriteString(encoded)
+	}
+	return uri.String()
 }

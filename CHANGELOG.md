@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.0]
+
+### Breaking Changes
+
+- Redis `New` functions now return `(client, error)` and reject a nil connection config
+- Removed PostgreSQL `HealthCheckPeriod`, which was not applied to the returned `*sql.DB`
+- MySQL `New` no longer performs network I/O during initialization
+
+### Changed
+
+- Raised the minimum Go version to 1.25
+- Applied configured connection-pool limits to MySQL and PostgreSQL replicas
+- Updated database dependencies to their latest versions
+- Replaced `github.com/pkg/errors` with the Go standard library
+
+### Fixed
+
+- Prevented MySQL connection errors from including credential-bearing DSNs
+- Escaped MongoDB URI credentials and options deterministically
+
 ## [v1.1.0] - 2026-02-15
 
 ### Changed

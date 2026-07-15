@@ -1,6 +1,7 @@
 package sentinel
 
 import (
+	"errors"
 	"net"
 	"time"
 
@@ -32,6 +33,9 @@ type Conn struct {
 
 // New creates a new Valkey sentinel client.
 func New(conn *Conn) (valkey.Client, error) {
+	if conn == nil {
+		return nil, errors.New("valkey connection config is required")
+	}
 	// Use defaults.
 	blockingPoolSize := _defaultBlockingPoolSize
 	if conn.BlockingPoolSize > 0 {
