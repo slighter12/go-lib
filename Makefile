@@ -22,7 +22,7 @@ tag-changed-modules:
 	test -n "$$version" || (echo "Cannot resolve version from $(CHANGELOG_FILE). Set VERSION manually."; exit 1); \
 	changed_files=$$(git diff-tree --no-commit-id --name-only -r "$(RANGE)"); \
 	test -n "$$changed_files" || (echo "No changed files found in RANGE=$(RANGE)"; exit 1); \
-	modules=$$(find database -name go.mod -exec dirname {} \; | sort); \
+	modules=$$(find database errors -name go.mod -exec dirname {} \; | sort); \
 	tagged=0; \
 	for module in $$modules; do \
 		if printf '%s\n' "$$changed_files" | grep -q "^$$module/"; then \
