@@ -78,6 +78,7 @@ func (err *stackError) Unwrap() error {
 func (err *stackError) Stack() string {
 	err.once.Do(func() {
 		err.stack = format(err.pcs)
+		err.pcs = nil
 	})
 	return err.stack
 }
