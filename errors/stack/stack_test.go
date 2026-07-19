@@ -136,6 +136,28 @@ func TestReplace_ReplacesDisplayAndPreservesErrorTree(t *testing.T) {
 	}
 }
 
+func TestReplace_PrefersOuterTypedErrorAndPreservesInnerStack(t *testing.T) {
+	inner := &testAppError{code: "REPOSITORY_NOT_FOUND", message: "record not found"}
+	captured := With(inner)
+	innerStack := stackProvider(t, captured)
+	outer := &testAppError{code: "USER_NOT_FOUND", message: "user not found"}
+	replaced := Replace(captured, outer)
+
+	got, ok := errors.AsType[*testAppError](replaced)
+	if !ok || got != outer {
+		t.Fatalf("errors.AsType() = (%v, %v), want outer %v", got, ok, outer)
+	}
+	if !errors.Is(replaced, outer) {
+		t.Fatal("errors.Is() did not find the outer replacement")
+	}
+	if !errors.Is(replaced, inner) {
+		t.Fatal("errors.Is() did not find the inner cause")
+	}
+	if got := stackProvider(t, replaced); got != innerStack {
+		t.Fatalf("errors.AsType[Provider]() = %T, want inner stack provider", got)
+	}
+}
+
 func TestReplace_PreservesCapturedStack(t *testing.T) {
 	captured := captureFirstStack()
 	firstStack := stackProvider(t, captured).Stack()
