@@ -64,7 +64,7 @@ func Replace(err, replacement error) error {
 	if replacement == nil {
 		return err
 	}
-	return &replacementError{replacement: replacement, err: err}
+	return &replacementError{replacement: replacement, err: with(err, 0)}
 }
 
 func (err *stackError) Error() string {

@@ -174,6 +174,18 @@ func TestReplace_PreservesCapturedStack(t *testing.T) {
 	}
 }
 
+func TestReplace_CapturesCallerStackWhenCauseHasNone(t *testing.T) {
+	replaced := captureReplacementStack()
+	firstFrame := strings.SplitN(stackProvider(t, replaced).Stack(), "; ", 2)[0]
+
+	if !strings.Contains(firstFrame, "captureReplacementStack") {
+		t.Fatalf("first stack frame = %q, want Replace caller", firstFrame)
+	}
+	if strings.Contains(firstFrame, ".Replace ") || strings.Contains(firstFrame, ".with ") {
+		t.Fatalf("first stack frame = %q, want no internal stack frame", firstFrame)
+	}
+}
+
 func TestReplace_MultipleCausesMapToSameAppErrorCode(t *testing.T) {
 	causes := []error{errors.New("record not found"), errors.New("soft deleted")}
 	for _, cause := range causes {
@@ -201,6 +213,10 @@ func TestReplace_NilHandling(t *testing.T) {
 
 func captureFirstStack() error {
 	return With(errors.New("first error"))
+}
+
+func captureReplacementStack() error {
+	return Replace(errors.New("cause"), &testAppError{code: "USER_NOT_FOUND", message: "user not found"})
 }
 
 func captureWithSkippedHelper() error {
