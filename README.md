@@ -8,7 +8,8 @@ The latest tagged release is v1.2.0.
 
 ## Requirements
 
-- Go 1.25 or higher
+- Go 1.25 or higher for database modules
+- Go 1.26 or higher for the source-stack module and this workspace
 
 ## Installation
 
@@ -28,6 +29,22 @@ go get github.com/slighter12/go-lib/database/valkey/cluster@v1.2.0
 
 go get github.com/slighter12/go-lib/database/mongo@v1.2.0
 ```
+
+### Source stack
+
+This package requires Go 1.26 or higher:
+
+```bash
+go get github.com/slighter12/go-lib/errors/stack@latest
+```
+
+Use `stack.With(err)` to capture an error's source stack. Retrieve it with
+`errors.AsType[stack.Provider]` only where your logger decides it should be
+rendered.
+
+Use `stack.Replace(err, appErr)` when an application layer must expose a domain
+error while preserving the original cause and any captured source stack.
+Both errors remain searchable with the standard `errors` package.
 
 ## Usage
 

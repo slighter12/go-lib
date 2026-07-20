@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en
+
+reviews:
+  profile: assertive
+  tools:
+    golangci-lint:
+      enabled: false
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 5
+  path_instructions:
+    - path: "**/*.go"
+      instructions: |
+        Review this as a public Go library. Flag breaking exported API changes,
+        unrequested dependencies, broken standard error-chain behavior, and
+        connection strings or credentials exposed in errors or logs.
+    - path: "**/go.mod"
+      instructions: |
+        Treat module paths, Go versions, and dependency changes as public
+        compatibility and release changes for independently installable modules.
+    - path: "go.work"
+      instructions: |
+        Ensure workspace entries match the independent modules and that its Go
+        version supports every listed module.

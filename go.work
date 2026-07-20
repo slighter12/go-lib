@@ -1,4 +1,4 @@
-go 1.25.0
+go 1.26.0
 
 use (
 	./database/mongo
@@ -10,4 +10,5 @@ use (
 	./database/valkey/cluster
 	./database/valkey/sentinel
 	./database/valkey/single
+	./errors/stack
 )
